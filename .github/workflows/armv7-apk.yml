@@ -1,0 +1,75 @@
+name: Armv7 demo APK
+
+# Personal demo build for a 32-bit phone.
+#
+# The team's shared build (zedu-ci/pr-build-react-native.yml) does two things that
+# make its APK unusable on an armeabi-v7a handset:
+#   1. -PreactNativeArchitectures=arm64-v8a,x86_64  -> no 32-bit libs, install fails
+#   2. zedu-ci/build/zedu-mobile.env leaves GOOGLE_CLIENT_ID unset by design, so
+#      GoogleSignin.configure({ webClientId: undefined }) and the app dies with
+#      "offline use requires server Web ClientID" before the sign-in screen paints.
+#
+# This workflow is a copy of those build steps with both changed. It only exists in
+# the fork; nothing here touches the review repo. Release signing falls back to the
+# debug.keystore committed in the repo, so the signing fingerprint is stable.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    name: armeabi-v7a release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          API_URL=https://api.hng.groups.zedu.chat
+          BASE_URL=https://api.hng.groups.zedu.chat/api/v1
+          CONNECT_URL=wss://api.hng.groups.zedu.chat/centrifugo/connection/websocket
+          CLIENT_URL=https://hng.groups.zedu.chat
+          GOOGLE_CLIENT_ID=764182056638-bi8bet0rdoabaeq24bqsdnb5iukn7ko4.apps.googleusercontent.com
+          EOF
+          echo "--- .env written ---"
+          cut -d= -f1 .env
+
+      - name: Assemble release APK for armeabi-v7a
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=armeabi-v7a
+
+      - name: Show what went in
+        run: |
+          ls -la android/app/build/outputs/apk/release/
+          unzip -l android/app/build/outputs/apk/release/app-release.apk | grep -E "lib/|\.so" | head -20 || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-armv7
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 7
