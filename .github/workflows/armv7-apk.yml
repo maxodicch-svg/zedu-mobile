@@ -52,6 +52,8 @@ jobs:
           CONNECT_URL=wss://api.hng.groups.zedu.chat/centrifugo/connection/websocket
           CLIENT_URL=https://hng.groups.zedu.chat
           GOOGLE_CLIENT_ID=764182056638-bi8bet0rdoabaeq24bqsdnb5iukn7ko4.apps.googleusercontent.com
+          ONESIGNAL_APP_ID=00000000-0000-0000-0000-000000000000
+          AGORA_APP_ID=00000000000000000000000000000000
           EOF
           echo "--- .env written ---"
           cut -d= -f1 .env
